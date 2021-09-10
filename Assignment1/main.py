@@ -1,6 +1,8 @@
 # Local imports
 from agents import RandomAgent
 from agents import TabularAgent
+
+import math
 from collections import deque
 
 # Python imports
@@ -50,7 +52,13 @@ for iteration in range(10000):
         action = agent.act(state)
         next_state, reward, done, _ = env.step(action)
 
-        reward = next_state[0] - 2.0 + abs(next_state[1])
+        reward = next_state[0] / 2 - 2.0 + abs(next_state[1])
+
+        if next_state[0] >= 0.4:
+            reward += .5
+
+        if next_state[0] >= 0.45:
+            reward += .5
 
         if next_state[0] >= 0.5:
             reward += 1

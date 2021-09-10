@@ -1,5 +1,5 @@
 
-  
+import math  
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -50,7 +50,11 @@ class TabularAgent(object):
         self.rewardList = []
         self.oneReward = 0
         self.Q = np.zeros(shape=(self.maxBoxes+1, self.maxBoxes+1, self.environment.action_space.n))
-        #self.Q = np.random.uniform(low = -1, high = 1, size = (self.maxBoxes+1, self.maxBoxes+1, self.environment.action_space.n))
+        self.steps_done = 0
+        self.EPS_END = .001
+        self.EPS_START = 1
+        self.EPS_DECAY = .005
+        #self.Q = np.random.uniform(low = -1, high = 1, size0= (self.maxBoxes+1, self.maxBoxes+1, self.environment.action_space.n))
 
 
     def convertState(self, state):
@@ -67,8 +71,11 @@ class TabularAgent(object):
         return int(round(howMany*(value - minV)/(maxV - minV)))
         
     def act(self, stateC):
+        self.steps_done += 1
         state = self.convertState(stateC)
-        if np.random.random() < 1 - self.exploreRate:
+        threshold = self.EPS_END + (self.EPS_START - self.EPS_END) * math.exp(-1. * self.steps_done * self.EPS_DECAY)
+
+        if np.random.random() < 1 - threshold:
             return np.argmax(self.Q[state[0], state[1]]) 
         else:
             return np.random.randint(0, self.environment.action_space.n)
@@ -81,7 +88,6 @@ class TabularAgent(object):
         # incrementally update the Q value in the table
         self.Q[state[0], state[1], action] += self.learningRate * (qEstimate - self.Q[state[0], state[1], action])
         self.oneReward += reward
-        self.exploreRate = max(self.exploreRate - 0.8/400, 0.05)
         if done:
             # reduce th explore rate
             #print("reward = %d" % self.oneReward)
