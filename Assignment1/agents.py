@@ -43,8 +43,8 @@ class TabularAgent(object):
         plt.show(block=False)
         # setup the hyper parameters
         self.environment = environment
-        self.exploreRate = 0.9
-        self.learningRate = 0.2
+        self.exploreRate = 1.0
+        self.learningRate = 0.24
         self.maxBoxes = 20
         # keep track of rewards for visualization
         self.rewardList = []
@@ -81,10 +81,11 @@ class TabularAgent(object):
         # incrementally update the Q value in the table
         self.Q[state[0], state[1], action] += self.learningRate * (qEstimate - self.Q[state[0], state[1], action])
         self.oneReward += reward
+        self.exploreRate = max(self.exploreRate - 0.8/400, 0.05)
         if done:
             # reduce th explore rate
-            self.exploreRate = max(self.exploreRate - 0.8/10000, 0)
             #print("reward = %d" % self.oneReward)
+            #self.exploreRate = max(self.exploreRate - 0.8/1000, 0)
             self.rewardList.append(self.oneReward)
             self.oneReward = 0
             if iteration % 500 == 0:
