@@ -1,6 +1,9 @@
 import os, shutil, imageio
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
+import random
+import time
 
 
 class RandomAgent(object):
@@ -23,12 +26,14 @@ class TabularAgent(RandomAgent):
         self.environment = environment
         self.action_space = 3
         self.state_space = 20
+        agent_name = "Tabular"
 
         self.learning_rate = 0.1
         self.discount = 0.95
 
         self.min_exploration_rate = 0.01
         self.exploration_rate = 1.0
+        #self.exploration_decay = 1 - (1e-7 *9)
         self.exploration_decay = 1 - 1e-6
 
         # Initialize a table to hold an expected value for every state-action pair.
@@ -43,7 +48,7 @@ class TabularAgent(RandomAgent):
         self.average_reward_list = []
         self.total_reward = 0
         self.plotting_iterations = 250
-        self.image_path = "./temp_images"
+        self.image_path = "./" + agent_name
         if os.path.exists(self.image_path):
             shutil.rmtree(self.image_path)
         os.mkdir(self.image_path)
@@ -176,9 +181,13 @@ class TabularAgent(RandomAgent):
 class TabularAgentMonteCarlo(TabularAgent):
     def __init__(self, environment):
         super().__init__(environment)
-
+        agent_name = "MCES"
+        self.image_path = "./" +agent_name
         self.rewards = []
         self.states = []
+        if os.path.exists(self.image_path):
+            shutil.rmtree(self.image_path)
+        os.mkdir(self.image_path)
 
         # Monte-Carlo looks at Value estimation instead of Quality estimation
         self.value_table = np.zeros(shape=(self.state_space, self.state_space))
@@ -256,6 +265,11 @@ class TabularAgentMonteCarlo(TabularAgent):
 class TabularAgentOnPolicyTD(TabularAgent):
     def __init__(self, environment):
         super().__init__(environment)
+        agent_name = "Sarsa"
+        self.image_path = "./" +agent_name
+        if os.path.exists(self.image_path):
+            shutil.rmtree(self.image_path)
+        os.mkdir(self.image_path)
 
     def learn(self, state, next_state, action, reward, done):
         super().learn(state, next_state, action, reward, done)
@@ -276,6 +290,12 @@ class TabularAgentOnPolicyTD(TabularAgent):
 class TabularAgentOffPolicyTD(TabularAgent):
     def __init__(self, environment):
         super().__init__(environment)
+        agent_name = "./Q-learning"
+        self.image_path = "./" +agent_name
+        if os.path.exists(self.image_path):
+            shutil.rmtree(self.image_path)
+        os.mkdir(self.image_path)
+
 
     def learn(self, state, next_state, action, reward, done):
         super().learn(state, next_state, action, reward, done)
@@ -289,3 +309,175 @@ class TabularAgentOffPolicyTD(TabularAgent):
             - self.quality_table[state + (action,)]
         )
         self.quality_table[state + (action,)] += update
+
+# n-step 
+class TabularNstep(TabularAgent):
+    
+    #loop for each episode
+    #initialize and store an action 
+    #Set T to infinite
+    #loop for the episode for t= 0, 1, 2, ...;
+        # if t < T
+            #Take action A_t
+            #store next reward and next state
+            #if the next state is the terminal state
+                #set T to that value
+            #else
+                #select print("learn time --- %s seconds ---" % (time.time() - start_time))and store the action A_t+1
+        # tao = t -n +1
+        # if tao >= 0
+            # G = 
+            # G = 
+            # Update Q
+            # use the greedy policy wrt Q
+    # until tao = t-1
+
+    def __init__(self, environment):
+        super().__init__(environment)
+        agent_name = "Nstep"
+
+        self.T = np.inf
+        self.t = 0
+        self.n = 3
+        self.rewards = []
+        self.states = []
+        self.actions = []
+        self.gamma = .99
+        self.learning_rate = .01
+        self.image_path = "./" +agent_name
+        if os.path.exists(self.image_path):
+            shutil.rmtree(self.image_path)
+        os.mkdir(self.image_path)
+
+
+    def learn(self, state, next_state, action, reward, done):
+        super().learn(state, next_state, action, reward, done)
+        
+        if not self.states and not self.actions and not self.rewards:
+            self.actions.append(action)
+            self.rewards.append(reward)
+            self.states.append(self.state_to_index(state))
+
+        if self.t < self.T:
+            self.rewards.append(reward)
+            self.states.append(self.state_to_index(next_state))
+
+            if done:
+                self.T = self.t + 1
+            else: 
+                action = self.act(next_state)  
+                self.actions.append(action)
+        tau = self.t - self.n + 1
+        if tau >= 0:
+            G = 0
+            for i in range(tau + 1, min(tau + self.n +1, self.T + 1)):
+                #print("i", i)
+                #print("t", self.t)
+                #print(self.rewards)
+                G += np.power(self.gamma, i - tau - 1) * self.rewards[i]
+            if tau + self.n < self.T:
+                state_action = (self.states[tau + self.n], self.actions[tau + self.n])
+                G += np.power(self.gamma, self.n) * self.quality_table[state_action[0] + (state_action[1],)]
+            # update Q values
+            state_action = (self.states[tau], self.actions[tau])
+            #print(state_action[0] + (state_action[1],))
+            #print("state + action" , state + (action,))
+                
+            update = self.learning_rate * (
+            G
+            - self.quality_table[state_action[0] + (state_action[1],)]
+            )
+
+            self.quality_table[state_action[0] + (state_action[1],)] += update  
+
+        #if tau == self.T - 1:
+        #    break
+        
+        self.t += 1
+
+
+    def finish_iteration(self, iteration):
+        super().finish_iteration(iteration)
+
+        self.rewards = []
+        self.states = []
+        self.actions = []
+        self.t = 0
+        self.T = np.inf
+
+
+
+class TabularDynaQ(TabularAgent):
+    def __init__(self, environment):
+        super().__init__(environment)
+        self.n = 20
+        self.maxBoxes = 20
+        self.discount =.99
+        self.learning_rate = .001
+        self.nextStateReward = [[[dict(), dict(), dict()] for _ in range(self.maxBoxes)] for _ in range(self.maxBoxes)]
+        update_state_action = False
+        self.state_action = []
+        agent_name = "DynaQ"
+        self.image_path = "./" + agent_name
+        if os.path.exists(self.image_path):
+            shutil.rmtree(self.image_path)
+        os.mkdir(self.image_path)
+
+    def learn(self, state, next_state, action, reward, done):
+        super().learn(state, next_state, action, reward, done)
+        #start_time = time.time()
+
+        state = self.state_to_index(state)
+        next_state = self.state_to_index(next_state)
+
+        state_action = state + (action,)
+        self.Qupdate(state_action, next_state, reward)
+
+        if not next_state in self.nextStateReward[state[0]][state[1]][action]:
+            self.nextStateReward[state[0]][state[1]][action][next_state] = reward
+            update_state_action = True
+        else:
+            update_state_action = False
+        
+        if update_state_action:
+            self.state_action = []
+            for x in range(np.shape(self.nextStateReward)[0]):
+                for xDot in range(np.shape(self.nextStateReward)[1]):
+                    for a in range(self.environment.action_space.n):
+                        if self.nextStateReward[x][xDot][a]:
+                            self.state_action.append((x,xDot,a))
+
+        #print("learn time --- %s seconds ---" % (time.time() - start_time))
+        self.planning() 
+
+
+    def planning(self):
+        #start_time = time.time()
+        for i in range(self.n):
+            state_action_choice = random.choice(self.state_action)
+            next_state_key = self.nextStateReward[state_action_choice[0]][state_action_choice[1]][state_action_choice[2]].keys()
+            next_state = list(next_state_key)[0]
+            reward = self.nextStateReward[state_action_choice[0]][state_action_choice[1]][state_action_choice[2]][next_state]
+            #remove the action from state action to get the state
+            #state = state_action_choice[:-1]
+            
+            self.Qupdate(state_action_choice, next_state, reward)
+        #print("plan time --- %s seconds ---" % (time.time() - start_time))
+
+    def finish_iteration(self, iteration):
+        super().finish_iteration(iteration)
+
+        update_state_action = False 
+        print(np.shape(self.state_action))
+        #update_state_action = True
+        #self.nextStateReward = [[[dict(), dict(), dict()] for _ in range(self.maxBoxes)] for _ in range(self.maxBoxes)]
+        #self.state_action = []
+
+    def Qupdate(self, state_action, next_state, reward):
+            update = self.learning_rate * (
+            reward
+            + self.discount * np.max(self.quality_table[next_state])
+            - self.quality_table[state_action]
+            )
+            self.quality_table[state_action] += update
+
